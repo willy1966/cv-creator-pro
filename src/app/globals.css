@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-surface text-ink antialiased;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+/* Print: show only the resume page */
+@media print {
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* The app shell (h-screen flex + nested overflow-auto panes) clips the
+     printable area to one empty viewport. Un-trap the resume for print. */
+  .h-screen {
+    height: auto !important;
+  }
+
+  .overflow-auto {
+    overflow: visible !important;
+  }
+
+  /* The pane containing #cvp-page is `hidden md:grid`; print page width can
+     fall below the md breakpoint (768px), display:none-ing the resume. */
+  .md\:grid {
+    display: grid !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #cvp-page,
+  #cvp-page * {
+    visibility: visible;
+    /* keep sidebars, bands, and gradients in the exported PDF */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #cvp-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    /* !important so these beat the inline width/minHeight/transform styles
+       used by the on-screen zoomed preview */
+    width: 210mm !important;
+    min-height: 297mm !important;
+
+    transform: none !important;
+    transform-origin: top left;
+
+    box-shadow: none !important;
+    border-radius: 0 !important;
+
+    overflow: visible !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
