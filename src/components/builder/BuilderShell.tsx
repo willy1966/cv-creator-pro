@@ -7,9 +7,11 @@ import { Btn, Card, Field, Area, Logo } from "@/components/ui";
 import { TEMPLATE_MAP } from "@/components/templates";
 import TemplateGallery, { recordTemplateUse } from "@/components/templates/TemplateGallery";
 import { SAMPLE_RESUME } from "@/lib/sample-data";
+import { OptionalExtras } from "@/components/templates";
 import {
   ResumeRow, ResumeData, SectionVisibility, TemplateId, FontId,
-  EMPTY_RESUME, TEMPLATES, ACCENT_CHOICES, FONT_STACKS, SectionKey,
+  EMPTY_RESUME, DEFAULT_SECTIONS, SECTION_TOGGLES, TEMPLATES,
+  ACCENT_CHOICES, FONT_STACKS,
 } from "@/lib/types";
 
 const STEP_META = [
@@ -18,7 +20,7 @@ const STEP_META = [
   { id: "skills", label: "Skills", title: "Skills & languages", sub: "Your strongest skills, in order of relevance." },
   { id: "experience", label: "Experience", title: "Work experience", sub: "Most recent role first. Each line becomes a bullet." },
   { id: "education", label: "Education", title: "Education & certifications", sub: "Degrees, schools, and any certifications." },
-  { id: "extras", label: "Extras", title: "Projects & awards", sub: "Portfolio projects, awards, and professional memberships." },
+  { id: "extras", label: "Extras", title: "Optional sections", sub: "Projects, awards, references, volunteer work, publications, and more." },
   { id: "finish", label: "Finish", title: "Finishing touches", sub: "Toggle sections and export your resume." },
 ] as const;
 
@@ -34,7 +36,12 @@ export default function BuilderShell({ initial }: { initial: ResumeRow }) {
   const [templateId, setTemplateId] = useState<TemplateId>(initial.template);
   const [accent, setAccent] = useState(initial.accent);
   const [fontId, setFontId] = useState<FontId>(initial.font);
-  const [sections, setSections] = useState<SectionVisibility>(initial.sections);
+  /* Merge with defaults so resumes saved before new optional sections were
+     added get them enabled (their data-empty state keeps them invisible). */
+  const [sections, setSections] = useState<SectionVisibility>({
+    ...DEFAULT_SECTIONS,
+    ...initial.sections,
+  });
   const [step, setStep] = useState(0);
   const [zoom, setZoom] = useState(70);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -166,7 +173,9 @@ export default function BuilderShell({ initial }: { initial: ResumeRow }) {
         {STEP_META[step].id === "skills" && <SkillsStep data={data} setData={setData} />}
         {STEP_META[step].id === "experience" && <ExperienceStep data={data} setData={setData} />}
         {STEP_META[step].id === "education" && <EducationStep data={data} setData={setData} />}
-        {STEP_META[step].id === "extras" && <ExtrasStep data={data} setData={setData} />}
+        {STEP_META[step].id === "extras" && (
+          <ExtrasStep data={data} setData={setData} sections={sections} />
+        )}
         {STEP_META[step].id === "finish" && (
           <FinishStep sections={sections} setSections={setSections} onPrint={onPrint} />
         )}
@@ -267,6 +276,7 @@ export default function BuilderShell({ initial }: { initial: ResumeRow }) {
             }}
           >
             <Template resume={{ data, accent, font: FONT_STACKS[fontId], sections }} />
+            <OptionalExtras resume={{ data, accent, font: FONT_STACKS[fontId], sections }} />
           </div>
         </div>
       </div>
@@ -596,10 +606,17 @@ function EducationStep({ data, setData }: StepProps) {
   );
 }
 
-function ExtrasStep({ data, setData }: StepProps) {
-  const projects = data.projects ?? [];
-  const awards = data.awards ?? [];
+function SubHead({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div>
+      <div className="text-[13px] font-bold text-ink">{title}</div>
+      <p className="text-xs text-slate-500">{hint}</p>
+    </div>
+  );
+}
 
+function ProjectsEditor({ data, setData }: StepProps) {
+  const projects = data.projects ?? [];
   const addProject = () =>
     setData({ ...data, projects: [...projects, { name: "", description: "", link: "" }] });
   const setProject = (i: number, k: "name" | "description" | "link", v: string) =>
@@ -607,20 +624,9 @@ function ExtrasStep({ data, setData }: StepProps) {
   const removeProject = (i: number) =>
     setData({ ...data, projects: projects.filter((_, j) => j !== i) });
 
-  const addAward = () =>
-    setData({ ...data, awards: [...awards, { name: "", issuer: "", year: "" }] });
-  const setAward = (i: number, k: "name" | "issuer" | "year", v: string) =>
-    setData({ ...data, awards: awards.map((a, j) => (j === i ? { ...a, [k]: v } : a)) });
-  const removeAward = (i: number) =>
-    setData({ ...data, awards: awards.filter((_, j) => j !== i) });
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="text-[13px] font-bold text-ink">Projects (optional)</div>
-      <p className="-mt-3 text-xs text-slate-500">
-        Portfolio pieces, GitHub repos, research, campaigns — templates show these under
-        &quot;Projects&quot; / &quot;Selected Work&quot;.
-      </p>
+    <div className="flex flex-col gap-3">
+      <SubHead title="Projects" hint='Portfolio pieces, GitHub repos, research, campaigns — shown as "Projects" / "Selected Work".' />
       {projects.map((pr, i) => (
         <Card key={i} className="bg-surface">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -641,17 +647,27 @@ function ExtrasStep({ data, setData }: StepProps) {
           </div>
         </Card>
       ))}
-      <Btn kind="ghost" onClick={addProject}>+ Add project</Btn>
+      <Btn kind="ghost" small onClick={addProject}>+ Add project</Btn>
+    </div>
+  );
+}
 
-      <div className="mt-2 text-[13px] font-bold text-ink">Awards & memberships (optional)</div>
-      <p className="-mt-3 text-xs text-slate-500">
-        Honors, prizes, and professional memberships — shown as &quot;Awards&quot; or
-        &quot;Professional Memberships&quot; depending on the template.
-      </p>
+function AwardsEditor({ data, setData }: StepProps) {
+  const awards = data.awards ?? [];
+  const addAward = () =>
+    setData({ ...data, awards: [...awards, { name: "", issuer: "", year: "" }] });
+  const setAward = (i: number, k: "name" | "issuer" | "year", v: string) =>
+    setData({ ...data, awards: awards.map((a, j) => (j === i ? { ...a, [k]: v } : a)) });
+  const removeAward = (i: number) =>
+    setData({ ...data, awards: awards.filter((_, j) => j !== i) });
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="Awards" hint="Honors and prizes — recognition worth showing off." />
       {awards.map((a, i) => (
         <div key={i} className="flex items-end gap-2.5">
           <div className="flex-[3]">
-            <Field label="Award / membership" value={a.name} onChange={(e) => setAward(i, "name", e.target.value)} placeholder="Best Brand Identity" />
+            <Field label="Award" value={a.name} onChange={(e) => setAward(i, "name", e.target.value)} placeholder="Best Brand Identity" />
           </div>
           <div className="flex-[2]">
             <Field label="Issuer (optional)" value={a.issuer} onChange={(e) => setAward(i, "issuer", e.target.value)} placeholder="Gulf Design Council" />
@@ -659,10 +675,253 @@ function ExtrasStep({ data, setData }: StepProps) {
           <div className="flex-1">
             <Field label="Year" value={a.year} onChange={(e) => setAward(i, "year", e.target.value)} placeholder="2023" />
           </div>
-          <Btn kind="danger" small onClick={() => removeAward(i)}>×</Btn>
+          <Btn kind="danger" small aria-label="Remove award" onClick={() => removeAward(i)}>×</Btn>
         </div>
       ))}
-      <Btn kind="ghost" small onClick={addAward}>+ Add award or membership</Btn>
+      <Btn kind="ghost" small onClick={addAward}>+ Add award</Btn>
+    </div>
+  );
+}
+
+function ReferencesEditor({ data, setData }: StepProps) {
+  const refs = data.references ?? [];
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+
+  const update = (list: NonNullable<ResumeData["references"]>) =>
+    setData({ ...data, references: list });
+  const setRef = (i: number, k: keyof NonNullable<ResumeData["references"]>[number], v: string) =>
+    update(refs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const add = () =>
+    update([...refs, { name: "", position: "", company: "", email: "", phone: "", relationship: "", address: "" }]);
+  const remove = (i: number) => update(refs.filter((_, j) => j !== i));
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= refs.length || from === to) return;
+    const list = [...refs];
+    const [item] = list.splice(from, 1);
+    list.splice(to, 0, item);
+    update(list);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="References" hint="Drag the ⠿ handle (or use ↑ ↓) to reorder. Add as many as you need." />
+      {refs.map((r, i) => (
+        <Card
+          key={i}
+          className={`bg-surface transition ${dragIdx === i ? "opacity-50" : ""}`}
+          onDragOver={(e: React.DragEvent) => e.preventDefault()}
+          onDrop={() => {
+            if (dragIdx !== null) move(dragIdx, i);
+            setDragIdx(null);
+          }}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <span
+              draggable
+              onDragStart={() => setDragIdx(i)}
+              onDragEnd={() => setDragIdx(null)}
+              title="Drag to reorder"
+              className="cursor-grab select-none rounded px-1.5 py-0.5 text-[15px] text-slate-400 hover:bg-slate-200 active:cursor-grabbing"
+            >⠿</span>
+            <div className="flex items-center gap-1">
+              <Btn kind="ghost" small aria-label="Move up" disabled={i === 0} onClick={() => move(i, i - 1)}>↑</Btn>
+              <Btn kind="ghost" small aria-label="Move down" disabled={i === refs.length - 1} onClick={() => move(i, i + 1)}>↓</Btn>
+              <Btn kind="danger" small onClick={() => remove(i)}>Remove</Btn>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Full name" value={r.name} onChange={(e) => setRef(i, "name", e.target.value)} placeholder="Ahmed Al Khalifa" />
+            <Field label="Position" value={r.position} onChange={(e) => setRef(i, "position", e.target.value)} placeholder="Creative Director" />
+            <Field label="Company" value={r.company} onChange={(e) => setRef(i, "company", e.target.value)} placeholder="Pixel & Co. Agency" />
+            <Field label="Relationship" value={r.relationship} onChange={(e) => setRef(i, "relationship", e.target.value)} placeholder="Former manager" />
+            <Field label="Email" type="email" value={r.email} onChange={(e) => setRef(i, "email", e.target.value)} placeholder="ahmed@pixelco.com" />
+            <Field label="Phone" value={r.phone} onChange={(e) => setRef(i, "phone", e.target.value)} placeholder="+973 3XXX XXXX" />
+            <Field label="Address (optional)" className="sm:col-span-2" value={r.address} onChange={(e) => setRef(i, "address", e.target.value)} placeholder="Manama, Bahrain" />
+          </div>
+        </Card>
+      ))}
+      <Btn kind="ghost" small onClick={add}>+ Add reference</Btn>
+    </div>
+  );
+}
+
+function VolunteerEditor({ data, setData }: StepProps) {
+  const items = data.volunteer ?? [];
+  const set = (i: number, k: keyof NonNullable<ResumeData["volunteer"]>[number], v: string) =>
+    setData({ ...data, volunteer: items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="Volunteer experience" hint="Community work, NGOs, pro-bono projects." />
+      {items.map((v, i) => (
+        <Card key={i} className="bg-surface">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Role" value={v.role} onChange={(e) => set(i, "role", e.target.value)} placeholder="Design volunteer" />
+            <Field label="Organization" value={v.organization} onChange={(e) => set(i, "organization", e.target.value)} placeholder="Red Crescent" />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Start" value={v.start} onChange={(e) => set(i, "start", e.target.value)} placeholder="2022" />
+              <Field label="End" value={v.end} onChange={(e) => set(i, "end", e.target.value)} placeholder="Present" />
+            </div>
+            <div className="sm:col-span-2">
+              <Area label="What you did" rows={2} value={v.description} onChange={(e) => set(i, "description", e.target.value)} placeholder="One bullet per line." />
+            </div>
+          </div>
+          <div className="mt-3 text-right">
+            <Btn kind="danger" small onClick={() => setData({ ...data, volunteer: items.filter((_, j) => j !== i) })}>Remove</Btn>
+          </div>
+        </Card>
+      ))}
+      <Btn kind="ghost" small onClick={() => setData({ ...data, volunteer: [...items, { organization: "", role: "", start: "", end: "", description: "" }] })}>
+        + Add volunteer experience
+      </Btn>
+    </div>
+  );
+}
+
+function PublicationsEditor({ data, setData }: StepProps) {
+  const items = data.publications ?? [];
+  const set = (i: number, k: keyof NonNullable<ResumeData["publications"]>[number], v: string) =>
+    setData({ ...data, publications: items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="Publications" hint="Articles, papers, books, talks." />
+      {items.map((p, i) => (
+        <div key={i} className="flex items-end gap-2.5">
+          <div className="flex-[3]">
+            <Field label="Title" value={p.title} onChange={(e) => set(i, "title", e.target.value)} placeholder="Designing for Trust" />
+          </div>
+          <div className="flex-[2]">
+            <Field label="Publisher / venue" value={p.publisher} onChange={(e) => set(i, "publisher", e.target.value)} placeholder="UX Magazine" />
+          </div>
+          <div className="w-20">
+            <Field label="Year" value={p.year} onChange={(e) => set(i, "year", e.target.value)} placeholder="2024" />
+          </div>
+          <div className="flex-[2]">
+            <Field label="Link (optional)" value={p.link} onChange={(e) => set(i, "link", e.target.value)} placeholder="doi.org/…" />
+          </div>
+          <Btn kind="danger" small aria-label="Remove publication" onClick={() => setData({ ...data, publications: items.filter((_, j) => j !== i) })}>×</Btn>
+        </div>
+      ))}
+      <Btn kind="ghost" small onClick={() => setData({ ...data, publications: [...items, { title: "", publisher: "", year: "", link: "" }] })}>
+        + Add publication
+      </Btn>
+    </div>
+  );
+}
+
+function MembershipsEditor({ data, setData }: StepProps) {
+  const items = data.memberships ?? [];
+  const set = (i: number, k: keyof NonNullable<ResumeData["memberships"]>[number], v: string) =>
+    setData({ ...data, memberships: items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="Professional memberships" hint="Associations, societies, chambers, boards." />
+      {items.map((m, i) => (
+        <div key={i} className="flex items-end gap-2.5">
+          <div className="flex-[3]">
+            <Field label="Organization" value={m.organization} onChange={(e) => set(i, "organization", e.target.value)} placeholder="Bahrain Society of Graphic Designers" />
+          </div>
+          <div className="flex-[2]">
+            <Field label="Role (optional)" value={m.role} onChange={(e) => set(i, "role", e.target.value)} placeholder="Member" />
+          </div>
+          <div className="w-24">
+            <Field label="Since" value={m.year} onChange={(e) => set(i, "year", e.target.value)} placeholder="2020" />
+          </div>
+          <Btn kind="danger" small aria-label="Remove membership" onClick={() => setData({ ...data, memberships: items.filter((_, j) => j !== i) })}>×</Btn>
+        </div>
+      ))}
+      <Btn kind="ghost" small onClick={() => setData({ ...data, memberships: [...items, { organization: "", role: "", year: "" }] })}>
+        + Add membership
+      </Btn>
+    </div>
+  );
+}
+
+function InterestsEditor({ data, setData }: StepProps) {
+  const [input, setInput] = useState("");
+  const interests = data.interests ?? [];
+  const add = () => {
+    const s = input.trim();
+    if (!s) return;
+    setData({ ...data, interests: [...interests, s] });
+    setInput("");
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <SubHead title="Hobbies & interests" hint="A short personal touch — keep it to a handful." />
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="e.g. Landscape photography — press Enter to add"
+          className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+        />
+        <Btn small onClick={add}>Add</Btn>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {interests.map((s, i) => (
+          <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[13px] font-semibold text-primary">
+            {s}
+            <button
+              type="button"
+              aria-label={`Remove ${s}`}
+              onClick={() => setData({ ...data, interests: interests.filter((_, j) => j !== i) })}
+              className="text-primary"
+            >×</button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CustomEditor({ data, setData }: StepProps) {
+  const items = data.custom ?? [];
+  const set = (i: number, k: keyof NonNullable<ResumeData["custom"]>[number], v: string) =>
+    setData({ ...data, custom: items.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
+  return (
+    <div className="flex flex-col gap-3">
+      <SubHead title="Custom sections" hint="Anything else — security clearances, availability, driving licence…" />
+      {items.map((c, i) => (
+        <Card key={i} className="bg-surface">
+          <Field label="Section title" value={c.title} onChange={(e) => set(i, "title", e.target.value)} placeholder="Additional Information" />
+          <div className="mt-3">
+            <Area label="Content" rows={3} value={c.content} onChange={(e) => set(i, "content", e.target.value)} placeholder="One bullet per line." />
+          </div>
+          <div className="mt-3 text-right">
+            <Btn kind="danger" small onClick={() => setData({ ...data, custom: items.filter((_, j) => j !== i) })}>Remove section</Btn>
+          </div>
+        </Card>
+      ))}
+      <Btn kind="ghost" small onClick={() => setData({ ...data, custom: [...items, { title: "", content: "" }] })}>
+        + Add custom section
+      </Btn>
+    </div>
+  );
+}
+
+function ExtrasStep({
+  data, setData, sections,
+}: StepProps & { sections: SectionVisibility }) {
+  const hidden = SECTION_TOGGLES
+    .filter((t) => !t.core && sections[t.key] === false)
+    .map((t) => t.label);
+
+  return (
+    <div className="flex flex-col gap-7">
+      {sections.projects !== false && <ProjectsEditor data={data} setData={setData} />}
+      {sections.awards !== false && <AwardsEditor data={data} setData={setData} />}
+      {sections.references !== false && <ReferencesEditor data={data} setData={setData} />}
+      {sections.volunteer !== false && <VolunteerEditor data={data} setData={setData} />}
+      {sections.publications !== false && <PublicationsEditor data={data} setData={setData} />}
+      {sections.memberships !== false && <MembershipsEditor data={data} setData={setData} />}
+      {sections.interests !== false && <InterestsEditor data={data} setData={setData} />}
+      {sections.custom !== false && <CustomEditor data={data} setData={setData} />}
+      {hidden.length > 0 && (
+        <p className="text-xs text-slate-400">
+          Disabled sections (turn on in the Finish step): {hidden.join(", ")}
+        </p>
+      )}
     </div>
   );
 }
@@ -674,20 +933,15 @@ function FinishStep({
   setSections: (s: SectionVisibility) => void;
   onPrint: () => void;
 }) {
-  const rows: [SectionKey, string][] = [
-    ["summary", "Professional summary"],
-    ["skills", "Skills"],
-    ["languages", "Languages"],
-    ["experience", "Work experience"],
-    ["education", "Education"],
-    ["certifications", "Certifications"],
-  ];
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <div className="mb-2.5 text-[13px] font-bold text-ink">Show or hide sections</div>
+        <div className="mb-1 text-[13px] font-bold text-ink">Manage sections</div>
+        <p className="mb-2.5 text-xs text-slate-500">
+          Optional sections also hide automatically while they have no entries.
+        </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {rows.map(([key, label]) => (
+          {SECTION_TOGGLES.map(({ key, label }) => (
             <label
               key={key}
               className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-[13px] font-semibold transition ${

@@ -39,8 +39,9 @@ export interface Certification {
   year: string;
 }
 
-/* Optional sections — not yet editable in the builder, but templates and
-   shared section components already support them. */
+/* Optional sections — editable in the builder's Extras step; rendered by
+   templates (projects/awards) or the shared OptionalExtras block (the rest)
+   only when they contain data. */
 export interface Project {
   name: string;
   description: string;
@@ -53,6 +54,42 @@ export interface Award {
   year: string;
 }
 
+export interface Reference {
+  name: string;
+  position: string;
+  company: string;
+  email: string;
+  phone: string;
+  relationship: string;
+  address: string; // optional field — may be empty
+}
+
+export interface Volunteer {
+  organization: string;
+  role: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+export interface Publication {
+  title: string;
+  publisher: string; // journal / venue / site
+  year: string;
+  link: string;
+}
+
+export interface Membership {
+  organization: string;
+  role: string;
+  year: string;
+}
+
+export interface CustomSection {
+  title: string;
+  content: string; // one line per bullet
+}
+
 export interface ResumeData {
   personal: PersonalInfo;
   summary: string;
@@ -63,6 +100,12 @@ export interface ResumeData {
   certifications: Certification[];
   projects?: Project[];
   awards?: Award[];
+  references?: Reference[];
+  volunteer?: Volunteer[];
+  publications?: Publication[];
+  memberships?: Membership[];
+  interests?: string[];
+  custom?: CustomSection[];
 }
 
 export type SectionKey =
@@ -71,9 +114,35 @@ export type SectionKey =
   | "languages"
   | "experience"
   | "education"
-  | "certifications";
+  | "certifications"
+  | "projects"
+  | "awards"
+  | "references"
+  | "volunteer"
+  | "publications"
+  | "memberships"
+  | "interests"
+  | "custom";
 
 export type SectionVisibility = Record<SectionKey, boolean>;
+
+/* Single source of truth for the Manage Sections panel. */
+export const SECTION_TOGGLES: { key: SectionKey; label: string; core?: boolean }[] = [
+  { key: "summary", label: "Professional summary", core: true },
+  { key: "skills", label: "Skills", core: true },
+  { key: "experience", label: "Work experience", core: true },
+  { key: "education", label: "Education", core: true },
+  { key: "languages", label: "Languages" },
+  { key: "certifications", label: "Certifications" },
+  { key: "projects", label: "Projects" },
+  { key: "awards", label: "Awards" },
+  { key: "references", label: "References" },
+  { key: "volunteer", label: "Volunteer experience" },
+  { key: "publications", label: "Publications" },
+  { key: "memberships", label: "Professional memberships" },
+  { key: "interests", label: "Hobbies & interests" },
+  { key: "custom", label: "Custom sections" },
+];
 
 export type TemplateId =
   | "modern" | "sidebar" | "minimal" | "classic" | "executive"
@@ -115,11 +184,19 @@ export const EMPTY_RESUME: ResumeData = {
   certifications: [],
   projects: [],
   awards: [],
+  references: [],
+  volunteer: [],
+  publications: [],
+  memberships: [],
+  interests: [],
+  custom: [],
 };
 
 export const DEFAULT_SECTIONS: SectionVisibility = {
   summary: true, skills: true, languages: true,
   experience: true, education: true, certifications: true,
+  projects: true, awards: true, references: true, volunteer: true,
+  publications: true, memberships: true, interests: true, custom: true,
 };
 
 export const FONT_STACKS: Record<FontId, string> = {

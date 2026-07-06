@@ -73,6 +73,32 @@ export const SAMPLE_RESUME: ResumeData = {
   ],
   awards: [
     { name: "Best Brand Identity — Gulf Design Awards", issuer: "Gulf Design Council", year: "2023" },
-    { name: "Member", issuer: "Bahrain Society of Graphic Designers", year: "2020" },
   ],
+  memberships: [
+    { organization: "Bahrain Society of Graphic Designers", role: "Member", year: "2020" },
+  ],
+  references: [
+    {
+      name: "Ahmed Al Khalifa",
+      position: "Creative Director",
+      company: "Pixel & Co. Agency",
+      email: "ahmed@pixelco.example",
+      phone: "+973 3311 2244",
+      relationship: "Current manager",
+      address: "",
+    },
+    {
+      name: "Leila Haddad",
+      position: "Head of Marketing",
+      company: "Gulf Media House",
+      email: "leila@gulfmedia.example",
+      phone: "+973 3355 6677",
+      relationship: "Former manager",
+      address: "Riffa, Bahrain",
+    },
+  ],
+  interests: ["Landscape photography", "Calligraphy", "Padel"],
+  volunteer: [],
+  publications: [],
+  custom: [],
 };

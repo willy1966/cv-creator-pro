@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { SAMPLE_RESUME } from "@/lib/sample-data";
 import { templates } from "./registry";
+import OptionalExtras from "./OptionalExtras";
 import type { Resume, TemplateDefinition } from "./types";
 import { PAGE } from "./tokens";
 
@@ -56,6 +57,7 @@ const LivePreview = memo(
       >
         <div className="origin-top-left" style={{ transform: `scale(${scale})`, width: PAGE.width }}>
           <Tpl resume={PREVIEW_RESUME(accent)} />
+          <OptionalExtras resume={PREVIEW_RESUME(accent)} />
         </div>
       </div>
     );

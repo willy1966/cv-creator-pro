@@ -373,7 +373,7 @@ export function CertificationsSection({
 
 export function ProjectsSection({ resume, H, title = "Projects" }: SectionProps) {
   const projects = resume.data.projects ?? [];
-  if (projects.length === 0) return null;
+  if (resume.sections.projects === false || projects.length === 0) return null;
   return (
     <>
       <H>{title}</H>
@@ -392,7 +392,7 @@ export function ProjectsSection({ resume, H, title = "Projects" }: SectionProps)
 
 export function AwardsSection({ resume, H, title = "Awards" }: SectionProps) {
   const awards = resume.data.awards ?? [];
-  if (awards.length === 0) return null;
+  if (resume.sections.awards === false || awards.length === 0) return null;
   return (
     <>
       <H>{title}</H>
