@@ -7,12 +7,19 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
+  /* Behind a reverse proxy (production hosting), request.url carries the
+     internal bind address (e.g. 0.0.0.0:3000). Build redirects from the
+     forwarded headers so users land on the public domain. */
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const baseUrl = forwardedHost ? `${forwardedProto}://${forwardedHost}` : origin;
+
   if (code) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  return NextResponse.redirect(`${baseUrl}/login?error=auth`);
 }
